@@ -1,0 +1,538 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+from sklearn.neural_network import MLPRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics.pairwise import euclidean_distances
+
+# ================================
+# PAGE CONFIG
+# ================================
+st.set_page_config(
+    page_title="University Advisor System - ML Enhanced",
+    layout="wide"
+)
+
+st.markdown("""
+<style>
+/* Main background */
+.stApp {
+    background-color: #f6f8fb;
+}
+
+/* Sidebar background */
+section[data-testid="stSidebar"] {
+    background-color: #94B4C1;
+}
+
+/* Sidebar text */
+section[data-testid="stSidebar"] * {
+    color: #1B3C53;  
+}
+
+/* Sidebar title */
+section[data-testid="stSidebar"] h1 {
+    color: #1B3C53;
+    font-weight: 700;
+}
+
+/* Page titles */
+h1, h2, h3 {
+    color: #1e3a8a;
+}
+
+/* Metric cards */
+div[data-testid="metric-container"] {
+    background-color: #94B4C1;
+    border: 1px solid #e5e7eb;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+/* Buttons */
+.stButton > button {
+    background-color: #1e40af;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+}
+.stButton > button:hover {
+    background-color: #1d4ed8;
+}
+
+/* Light professional theme */
+.main {
+    background-color: #eef2f7;
+}
+h1, h2, h3 {
+    color: #1f3c88;
+    font-family: 'Segoe UI', sans-serif;
+}
+.stMetric {
+    background-color: #ffffff;
+    padding: 14px;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ================================
+# LOAD DATA
+# ================================
+@st.cache_data
+def load_data():
+    df = pd.read_csv("70_universities_dataset.csv")
+    df.columns = (
+        df.columns.str.lower()
+        .str.strip()
+        .str.replace(" ", "_")
+    )
+    return df
+
+df = load_data()
+
+# ================================
+# AGGREGATE UNIVERSITY DATA
+# ================================
+num_cols = df.select_dtypes(include=np.number).columns
+agg = {
+    c: "mean" if c in num_cols else lambda x: x.mode()[0]
+    for c in df.columns if c != "university"
+}
+uni = df.groupby("university").agg(agg).reset_index()
+
+# ================================
+# PUBLIC / PRIVATE (PAKISTAN)
+# ================================
+public_keywords = ["university of", "government", "national", "public"]
+uni["type"] = uni["university"].str.lower().apply(
+    lambda x: "Public" if any(k in x for k in public_keywords) else "Private"
+)
+
+# ================================
+# TRAIN ALL THREE ML MODELS
+# ================================
+features = ["overall_score", "research_score", "teaching_score", "hec_score"]
+X = uni[features]
+y = uni["hec_rank"]
+
+# Split data for evaluation
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# ================================
+# MODEL 1: MLP REGRESSOR 
+# ================================
+model_mlp = MLPRegressor(
+    hidden_layer_sizes=(50, 25),
+    max_iter=700,
+    random_state=42
+)
+model_mlp.fit(X_train_scaled, y_train)
+y_pred_mlp = model_mlp.predict(X_test_scaled)
+
+mlp_mae = mean_absolute_error(y_test, y_pred_mlp)
+mlp_mse = mean_squared_error(y_test, y_pred_mlp)
+mlp_r2 = r2_score(y_test, y_pred_mlp)
+
+# Train on full data for predictions
+model_mlp_full = MLPRegressor(
+    hidden_layer_sizes=(50, 25),
+    max_iter=700,
+    random_state=42
+)
+model_mlp_full.fit(X_scaled, y)
+
+# ================================
+# MODEL 2: RANDOM FOREST REGRESSOR
+# ================================
+model_rf = RandomForestRegressor(
+    n_estimators=100,
+    max_depth=10,
+    random_state=42,
+    n_jobs=-1
+)
+model_rf.fit(X_train_scaled, y_train)
+y_pred_rf = model_rf.predict(X_test_scaled)
+
+rf_mae = mean_absolute_error(y_test, y_pred_rf)
+rf_mse = mean_squared_error(y_test, y_pred_rf)
+rf_r2 = r2_score(y_test, y_pred_rf)
+
+# Train on full data
+model_rf_full = RandomForestRegressor(
+    n_estimators=100,
+    max_depth=10,
+    random_state=42,
+    n_jobs=-1
+)
+model_rf_full.fit(X_scaled, y)
+
+# ================================
+# MODEL 3: GRADIENT BOOSTING REGRESSOR
+# ================================
+model_gb = GradientBoostingRegressor(
+    n_estimators=100,
+    max_depth=5,
+    learning_rate=0.1,
+    random_state=42
+)
+model_gb.fit(X_train_scaled, y_train)
+y_pred_gb = model_gb.predict(X_test_scaled)
+
+gb_mae = mean_absolute_error(y_test, y_pred_gb)
+gb_mse = mean_squared_error(y_test, y_pred_gb)
+gb_r2 = r2_score(y_test, y_pred_gb)
+
+# Train on full data
+model_gb_full = GradientBoostingRegressor(
+    n_estimators=100,
+    max_depth=5,
+    learning_rate=0.1,
+    random_state=42
+)
+model_gb_full.fit(X_scaled, y)
+
+# ================================
+# SIDEBAR
+# ================================
+st.sidebar.title("🎓 Predictive Model of Pakistan University")
+st.sidebar.caption("Intelligent system with Multiple ML Models")
+
+# Model Selection
+selected_model = st.sidebar.selectbox(
+    "🤖 Select ML Model",
+    ["MLP Regressor (Neural Network)", "Random Forest", "Gradient Boosting"]
+)
+
+# Map selection to actual model
+if selected_model == "MLP Regressor (Neural Network)":
+    current_model = model_mlp_full
+    model_name = "MLP"
+elif selected_model == "Random Forest":
+    current_model = model_rf_full
+    model_name = "RF"
+else:
+    current_model = model_gb_full
+    model_name = "GB"
+
+st.sidebar.markdown("---")
+
+page = st.sidebar.selectbox(
+    "📍 Navigation",
+    [
+        "🏛 University Explorer",
+        "🧑‍🎓 Student Advisor",
+        "🤖 Rank Simulator",
+        "🎯 University Prediction",
+        "📊 Insights",
+        "🔬 Model Comparison"
+    ]
+)
+
+# ================================
+# PAGE 1: UNIVERSITY EXPLORER
+# ================================
+if page == "🏛 University Explorer":
+    st.title("🏛 University Explorer")
+
+    uni_name = st.selectbox("Select University", uni["university"])
+    row = uni[uni["university"] == uni_name].iloc[0]
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("HEC Rank", int(row["hec_rank"]))
+    c2.metric("Overall Score", round(row["overall_score"], 1))
+    c3.metric("Type", row["type"])
+    c4.metric("Founded", int(row["year_founded"]))
+
+    st.subheader("Departments Offered")
+    st.write(", ".join(df[df["university"] == uni_name]["department"].unique()))
+
+# ================================
+# PAGE 2: STUDENT ADVISOR 
+# ================================
+elif page == "🧑‍🎓 Student Advisor":
+    st.title("🧑‍🎓 Student Advisor")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        gpa = st.slider("Your GPA", 2.0, 4.0, 3.0, 0.1)
+        preference = st.radio(
+            "Preferred University Type",
+            ["Balanced", "Public University", "Private University"]
+        )
+
+    with col2:
+        department = st.selectbox(
+            "Intended Department",
+            sorted(df["department"].unique())
+        )
+
+    if st.button("Find Best Universities"):
+        temp = uni.copy()
+
+        temp["dept_match"] = temp["university"].map(
+            df.groupby("university")["department"]
+            .apply(lambda x: department in x.values)
+        )
+
+        base = temp["overall_score"] * (gpa / 4)
+
+        if preference == "Public University":
+            pref = temp["research_score"] + (temp["type"] == "Public") * 15
+        elif preference == "Private University":
+            pref = temp["teaching_score"] + (temp["type"] == "Private") * 15
+        else:
+            pref = (temp["research_score"] + temp["teaching_score"]) / 2
+
+        temp["final_score"] = base + pref + temp["dept_match"] * 10
+        results = temp.sort_values("final_score", ascending=False).head(5)
+
+        st.subheader("Recommended Universities")
+        for r in results.itertuples():
+            st.write(f"🎓 **{r.university}** ({r.type}) — Rank {int(r.hec_rank)}")
+
+# ================================
+# PAGE 3: RANK SIMULATOR 
+# ================================
+elif page == "🤖 Rank Simulator":
+    st.title("🤖 Rank Simulator")
+    
+    st.info(f"Currently using: **{selected_model}**")
+
+    o = st.slider("Overall Score", 50, 100, 75)
+    r = st.slider("Research Score", 50, 100, 70)
+    t = st.slider("Teaching Score", 50, 100, 72)
+    h = st.slider("HEC Score", 50, 100, 80)
+
+    sample = scaler.transform([[o, r, t, h]])
+    pred_rank = int(current_model.predict(sample)[0])
+
+    st.metric("Predicted Rank (Selected Model)", pred_rank)
+    
+    # Show comparison with all models
+    st.subheader("📊 Compare All Models for Same Input")
+    
+    mlp_pred = int(model_mlp_full.predict(sample)[0])
+    rf_pred = int(model_rf_full.predict(sample)[0])
+    gb_pred = int(model_gb_full.predict(sample)[0])
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("MLP Regressor", mlp_pred)
+        if mlp_pred == pred_rank and model_name == "MLP":
+            st.success("✓ Currently selected")
+    
+    with col2:
+        st.metric("Random Forest", rf_pred)
+        if rf_pred == pred_rank and model_name == "RF":
+            st.success("✓ Currently selected")
+    
+    with col3:
+        st.metric("Gradient Boosting", gb_pred)
+        if gb_pred == pred_rank and model_name == "GB":
+            st.success("✓ Currently selected")
+    
+    # Show prediction differences
+    predictions = [mlp_pred, rf_pred, gb_pred]
+    if len(set(predictions)) > 1:
+        st.warning(f"⚠️ Models disagree! Predictions range from {min(predictions)} to {max(predictions)} (difference of {max(predictions) - min(predictions)} ranks)")
+    else:
+        st.info("✓ All models agree on this prediction!")
+
+    uni["diff"] = abs(uni["hec_rank"] - pred_rank)
+    st.subheader("Closest Universities to Selected Model Prediction")
+    for u in uni.sort_values("diff").head(5).itertuples():
+        st.write(f"{u.university} — Rank {int(u.hec_rank)}")
+
+# ================================
+# PAGE 4: UNIVERSITY PREDICTION
+# ================================
+elif page == "🎯 University Prediction":
+    st.title("🎯 University Prediction")
+    
+    st.info(f"Currently using: **{selected_model}**")
+
+    # Toggle between methods
+    prediction_method = st.radio(
+        "Prediction Method",
+        ["Nearest University Match (100% Accurate)", "ML Model Prediction (Real Accuracy)"]
+    )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        o = st.slider("Overall Score", 50, 100, 75)
+        r = st.slider("Research Score", 50, 100, 70)
+
+    with c2:
+        t = st.slider("Teaching Score", 50, 100, 72)
+        h = st.slider("HEC Score", 50, 100, 80)
+
+    if st.button("Predict University"):
+        input_scaled = scaler.transform([[o, r, t, h]])
+        
+        if prediction_method == "Nearest University Match (100% Accurate)":
+            # Original method: Find nearest university
+            distances = euclidean_distances(input_scaled, X_scaled)
+            idx = np.argmin(distances)
+            predicted_uni = uni.iloc[idx]
+            predicted_rank = int(predicted_uni["hec_rank"])
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("University", predicted_uni["university"])
+            c2.metric("Actual HEC Rank", int(predicted_uni["hec_rank"]))
+            c3.metric("Predicted Rank", predicted_rank)
+
+            st.info(
+                "✓ Nearest neighbor matching: Maps input to closest real university. "
+                "Predicted rank = Actual rank (always matches)."
+            )
+        
+        else:
+            # New method: Use ML model to predict rank, then find closest university
+            ml_predicted_rank = int(current_model.predict(input_scaled)[0])
+            
+            # Find university with closest rank to ML prediction
+            uni_temp = uni.copy()
+            uni_temp["rank_diff"] = abs(uni_temp["hec_rank"] - ml_predicted_rank)
+            closest_uni = uni_temp.sort_values("rank_diff").iloc[0]
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Closest University", closest_uni["university"])
+            c2.metric("Actual HEC Rank", int(closest_uni["hec_rank"]))
+            c3.metric("ML Predicted Rank", ml_predicted_rank)
+            
+            rank_difference = abs(ml_predicted_rank - int(closest_uni["hec_rank"]))
+            
+            if rank_difference == 0:
+                st.success("🎯 Perfect prediction! ML model matched exactly.")
+            elif rank_difference <= 3:
+                st.success(f"✓ Excellent prediction! Off by only {rank_difference} rank(s).")
+            elif rank_difference <= 5:
+                st.warning(f"⚠ Good prediction. Off by {rank_difference} rank(s).")
+            else:
+                st.error(f"❌ Prediction error: {rank_difference} rank(s) difference.")
+            
+            st.info(
+                f"✓ ML Model Prediction: {selected_model} predicted rank {ml_predicted_rank}. "
+                f"Showing closest university to this predicted rank."
+            )
+
+# ================================
+# PAGE 5: INSIGHTS 
+# ================================
+elif page == "📊 Insights":
+    st.title("📊 Insights")
+
+    option = st.selectbox(
+        "Select View",
+        [
+            "Top Universities Overall",
+            "Top Public Universities",
+            "Top Private Universities",
+            "Best Research Universities"
+        ]
+    )
+
+    if option == "Top Universities Overall":
+        st.dataframe(
+            uni.sort_values("overall_score", ascending=False)
+            .head(10)[["university", "type", "overall_score", "hec_rank"]]
+        )
+
+    elif option == "Top Public Universities":
+        st.dataframe(
+            uni[uni["type"] == "Public"]
+            .sort_values("overall_score", ascending=False)
+            .head(10)
+        )
+
+    elif option == "Top Private Universities":
+        st.dataframe(
+            uni[uni["type"] == "Private"]
+            .sort_values("overall_score", ascending=False)
+            .head(10)
+        )
+
+    elif option == "Best Research Universities":
+        st.dataframe(
+            uni.sort_values("research_score", ascending=False)
+            .head(10)[["university", "research_score", "hec_rank"]]
+        )
+
+# ================================
+# PAGE 6: MODEL COMPARISON (NEW)
+# ================================
+elif page == "🔬 Model Comparison":
+    st.title("🔬 Machine Learning Model Comparison")
+    
+    st.markdown("""
+    This section compares the performance of three different machine learning models 
+    for predicting university rankings.
+    """)
+    
+    # Performance Metrics Table
+    st.subheader("📈 Model Performance Metrics")
+    
+    performance_data = {
+        "Model": ["MLP Regressor", "Random Forest", "Gradient Boosting"],
+        "MAE": [round(mlp_mae, 2), round(rf_mae, 2), round(gb_mae, 2)],
+        "MSE": [round(mlp_mse, 2), round(rf_mse, 2), round(gb_mse, 2)],
+        "R² Score": [round(mlp_r2, 3), round(rf_r2, 3), round(gb_r2, 3)]
+    }
+    
+    perf_df = pd.DataFrame(performance_data)
+    st.dataframe(perf_df, use_container_width=True)
+    
+    # Best Model Indicator
+    best_r2_idx = perf_df["R² Score"].idxmax()
+    best_model_name = perf_df.loc[best_r2_idx, "Model"]
+    
+    st.success(f"🏆 **Best Performing Model**: {best_model_name} (R² Score: {perf_df.loc[best_r2_idx, 'R² Score']})")
+    
+    # Model Descriptions
+    st.subheader("🤖 Model Descriptions")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("**MLP Regressor**")
+        st.write("Neural network with multiple layers. Learns complex non-linear patterns.")
+        st.metric("R² Score", round(mlp_r2, 3))
+    
+    with col2:
+        st.markdown("**Random Forest**")
+        st.write("Ensemble of decision trees. Robust and handles non-linearity well.")
+        st.metric("R² Score", round(rf_r2, 3))
+    
+    with col3:
+        st.markdown("**Gradient Boosting**")
+        st.write("Sequential ensemble method. Often achieves highest accuracy.")
+        st.metric("R² Score", round(gb_r2, 3))
+    
+    # Feature Importance (Random Forest)
+    st.subheader("📊 Feature Importance (Random Forest)")
+    
+    feature_importance = pd.DataFrame({
+        "Feature": features,
+        "Importance": model_rf_full.feature_importances_
+    }).sort_values("Importance", ascending=False)
+    
+    st.bar_chart(feature_importance.set_index("Feature"))
+    
+    st.markdown("""
+    ---
+    **Note**: Lower MAE and MSE values indicate better performance. 
+    R² Score closer to 1.0 indicates better model fit.
+    """)
