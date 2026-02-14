@@ -1,0 +1,297 @@
+import os
+
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def show_theory():
+    clear_screen()
+    print("========================================")
+    print("  WHAT IS GRAM-SCHMIDT PROCESS?")
+    print("========================================\n")
+    
+    print("The Gram-Schmidt process takes a set of vectors")
+    print("and turns them into orthogonal vectors.\n")
+    
+    print("ORTHOGONAL means the vectors are perpendicular")
+    print("(their dot product = 0)\n")
+    
+    print("THE FORMULA:")
+    print("------------")
+    print("u1 = v1")
+    print("u2 = v2 - projection of v2 onto u1")
+    print("u3 = v3 - projection of v3 onto u1 and u2\n")
+    
+    print("Projection formula:")
+    print("proj(u,v) = ((v·u)/(u·u)) * u\n")
+    
+    print("WHY DO WE NEED IT?")
+    print("------------------")
+    print("- Makes calculations easier")
+    print("- Used in computer graphics")
+    print("- Important for machine learning")
+    print("- Solving equations in linear algebra")
+
+def example_2d():
+    clear_screen()
+    print("========================================")
+    print("  2D EXAMPLE (EASY)")
+    print("========================================\n")
+    
+    print("Given vectors:")
+    print("v1 = (3, 1)")
+    print("v2 = (2, 2)\n")
+    
+    # Define vectors
+    v1 = [3, 1]
+    v2 = [2, 2]
+    
+    print("STEP 1: First orthogonal vector")
+    print("--------------------------------")
+    print("u1 = v1 = (3, 1)\n")
+    u1 = [3, 1]
+    
+    print("STEP 2: Calculate u2")
+    print("--------------------------------")
+    print("First, find projection of v2 onto u1\n")
+    
+    # Calculate dot products
+    v2_dot_u1 = (v2[0] * u1[0]) + (v2[1] * u1[1])
+    u1_dot_u1 = (u1[0] * u1[0]) + (u1[1] * u1[1])
+    
+    print(f"v2 · u1 = (2)(3) + (2)(1) = {v2_dot_u1}")
+    print(f"u1 · u1 = (3)(3) + (1)(1) = {u1_dot_u1}")
+    
+    scalar = v2_dot_u1 / u1_dot_u1
+    print(f"\nscalar = {v2_dot_u1} / {u1_dot_u1} = {scalar}")
+    
+    # Calculate projection
+    proj = [scalar * u1[0], scalar * u1[1]]
+    print(f"projection = {scalar} * (3, 1)")
+    print(f"projection = ({proj[0]}, {proj[1]})\n")
+    
+    # Calculate u2
+    u2 = [v2[0] - proj[0], v2[1] - proj[1]]
+    print("u2 = v2 - projection")
+    print(f"u2 = (2, 2) - ({proj[0]}, {proj[1]})")
+    print(f"u2 = ({u2[0]}, {u2[1]})\n")
+    
+    print("VERIFICATION:")
+    print("-------------")
+    check = (u1[0] * u2[0]) + (u1[1] * u2[1])
+    print(f"u1 · u2 = (3)({u2[0]}) + (1)({u2[1]}) = {check}")
+    
+    if abs(check) < 0.0001:
+        print("SUCCESS! Vectors are orthogonal!\n")
+    
+    print("FINAL ANSWER:")
+    print("-------------")
+    print("u1 = (3, 1)")
+    print(f"u2 = ({u2[0]}, {u2[1]})")
+
+def example_3d():
+    clear_screen()
+    print("========================================")
+    print("  3D EXAMPLE")
+    print("========================================\n")
+    
+    print("Given vectors:")
+    print("v1 = (1, 1, 0)")
+    print("v2 = (1, 0, 1)")
+    print("v3 = (0, 1, 1)\n")
+    
+    v1 = [1, 1, 0]
+    v2 = [1, 0, 1]
+    v3 = [0, 1, 1]
+    
+    print("STEP 1: u1 = v1 = (1, 1, 0)\n")
+    u1 = [1, 1, 0]
+    
+    print("STEP 2: Calculate u2")
+    print("--------------------")
+    v2u1 = dot_product(v2, u1)
+    u1u1 = dot_product(u1, u1)
+    scalar1 = v2u1 / u1u1
+    
+    print(f"v2 · u1 = {v2u1}")
+    print(f"u1 · u1 = {u1u1}")
+    print(f"scalar = {scalar1}")
+    
+    proj1 = multiply(u1, scalar1)
+    u2 = subtract(v2, proj1)
+    
+    print(f"u2 = ({u2[0]}, {u2[1]}, {u2[2]})\n")
+    
+    print("STEP 3: Calculate u3")
+    print("--------------------")
+    print("u3 = v3 - proj(u1) - proj(u2)\n")
+    
+    v3u1 = dot_product(v3, u1)
+    scalar2 = v3u1 / u1u1
+    proj2 = multiply(u1, scalar2)
+    
+    v3u2 = dot_product(v3, u2)
+    u2u2 = dot_product(u2, u2)
+    scalar3 = v3u2 / u2u2
+    proj3 = multiply(u2, scalar3)
+    
+    u3 = subtract(subtract(v3, proj2), proj3)
+    
+    print(f"u3 = ({u3[0]}, {u3[1]}, {u3[2]})\n")
+    
+    print("VERIFICATION:")
+    print("-------------")
+    check1 = dot_product(u1, u2)
+    check2 = dot_product(u1, u3)
+    check3 = dot_product(u2, u3)
+    
+    print(f"u1 · u2 = {check1}")
+    print(f"u1 · u3 = {check2}")
+    print(f"u2 · u3 = {check3}")
+    
+    if abs(check1) < 0.0001 and abs(check2) < 0.0001 and abs(check3) < 0.0001:
+        print("\nSUCCESS! All vectors are orthogonal!")
+
+def custom_input():
+    clear_screen()
+    print("========================================")
+    print("  ENTER YOUR OWN VECTORS")
+    print("========================================\n")
+    
+    try:
+        dim = int(input("How many dimensions? (2, 3, or 4): "))
+        num = int(input("How many vectors? (2 or 3): "))
+        
+        vectors = []
+        
+        for i in range(num):
+            vector = []
+            print(f"\nVector {i + 1}:")
+            for j in range(dim):
+                value = float(input(f"  Enter value {j + 1}: "))
+                vector.append(value)
+            vectors.append(vector)
+        
+        print("\n\nPROCESSING...\n")
+        print("=" * 50)
+        print("  STEP-BY-STEP SOLUTION")
+        print("=" * 50)
+        
+        # Apply Gram-Schmidt with detailed steps
+        result = []
+        
+        # Step 1: First vector
+        print("\nSTEP 1: First orthogonal vector")
+        print("-" * 40)
+        result.append(vectors[0][:])
+        values = ", ".join([f"{v:.2f}" for v in result[0]])
+        print(f"u1 = v1 = ({values})")
+        
+        # Process remaining vectors
+        for i in range(1, num):
+            print(f"\n\nSTEP {i + 1}: Calculate u{i + 1}")
+            print("-" * 40)
+            print(f"u{i + 1} = v{i + 1} - ", end="")
+            for j in range(i):
+                if j > 0:
+                    print(" - ", end="")
+                print(f"proj(u{j + 1}, v{i + 1})", end="")
+            print("\n")
+            
+            result.append(vectors[i][:])
+            
+            # Calculate each projection
+            for j in range(i):
+                print(f"Calculating projection onto u{j + 1}:")
+                dot1 = dot_product(vectors[i], result[j])
+                dot2 = dot_product(result[j], result[j])
+                print(f"  v{i + 1} · u{j + 1} = {dot1:.4f}")
+                print(f"  u{j + 1} · u{j + 1} = {dot2:.4f}")
+                
+                scalar = dot1 / dot2
+                print(f"  scalar = {dot1:.4f} / {dot2:.4f} = {scalar:.4f}")
+                
+                proj = multiply(result[j], scalar)
+                proj_str = ", ".join([f"{v:.4f}" for v in proj])
+                print(f"  proj(u{j + 1}, v{i + 1}) = ({proj_str})")
+                
+                result[i] = subtract(result[i], proj)
+                print()
+            
+            values = ", ".join([f"{v:.2f}" for v in result[i]])
+            print(f"Result: u{i + 1} = ({values})")
+        
+        print("\n\n" + "=" * 50)
+        print("  FINAL RESULTS")
+        print("=" * 50)
+        print("\nOrthogonal Vectors:")
+        print("-" * 40)
+        for i in range(num):
+            values = ", ".join([f"{v:.2f}" for v in result[i]])
+            print(f"u{i + 1} = ({values})")
+        
+        print("\n\nVERIFYING ORTHOGONALITY:")
+        print("-" * 40)
+        print("(Dot products should equal 0)\n")
+        for i in range(num - 1):
+            for j in range(i + 1, num):
+                dot = dot_product(result[i], result[j])
+                status = "✓ ORTHOGONAL" if abs(dot) < 0.0001 else "✗ NOT ORTHOGONAL"
+                print(f"u{i + 1} · u{j + 1} = {dot:.4f}  {status}")
+    
+    except Exception as ex:
+        print(f"\nError: {ex}")
+
+# Helper functions
+def dot_product(v1, v2):
+    total = 0
+    for i in range(len(v1)):
+        total += v1[i] * v2[i]
+    return total
+
+def multiply(v, scalar):
+    result = []
+    for i in range(len(v)):
+        result.append(v[i] * scalar)
+    return result
+
+def subtract(v1, v2):
+    result = []
+    for i in range(len(v1)):
+        result.append(v1[i] - v2[i])
+    return result
+
+def main():
+    print("========================================")
+    print("  GRAM-SCHMIDT ORTHOGONALIZATION")
+    print("========================================\n")
+    
+    running = True
+    
+    while running:
+        print("\n1. What is Gram-Schmidt?")
+        print("2. Simple 2D Example")
+        print("3. 3D Example")
+        print("4. Enter Your Own Vectors")
+        print("5. Exit")
+        choice = input("\nChoose option: ")
+        
+        if choice == "1":
+            show_theory()
+        elif choice == "2":
+            example_2d()
+        elif choice == "3":
+            example_3d()
+        elif choice == "4":
+            custom_input()
+        elif choice == "5":
+            running = False
+            print("\nGoodbye!")
+        else:
+            print("Invalid choice!")
+        
+        if running:
+            input("\nPress Enter to continue...")
+            clear_screen()
+
+if __name__ == "__main__":
+    main()
