@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Demand Forecasting System — FMCG</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary:   #1A56DB;
+    --primary-l: #EBF0FF;
+    --accent:    #E3A008;
+    --success:   #057A55;
+    --danger:    #E02424;
+    --neutral:   #374151;
+    --text:      #111827;
+    --muted:     #6B7280;
+    --bg:        #F3F4F6;
+    --card:      #FFFFFF;
+    --border:    #E5E7EB;
+    --radius:    12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ── Header ────────────────────────────────────────── */
+  header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1A56DB 60%, #2563eb 100%);
+    padding: 28px 40px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(26,86,219,.35);
+  }
+  .header-left h1 { color: #fff; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-left p  { color: rgba(255,255,255,.7); font-size: 13px; margin-top: 4px; }
+  .header-badge {
+    background: rgba(255,255,255,.15); color: #fff;
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+  }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 28px 24px; }
+
+  /* ── KPI Cards ──────────────────────────────────────── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi {
+    background: var(--card); border-radius: var(--radius);
+    padding: 20px 22px; border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 4px; height: 100%; background: var(--kpi-color, var(--primary));
+    border-radius: 4px 0 0 4px;
+  }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .kpi-value { font-size: 28px; font-weight: 800; color: var(--text); margin: 6px 0 2px; line-height: 1; }
+  .kpi-sub   { font-size: 12px; color: var(--muted); }
+  .kpi-icon  { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-size: 32px; opacity: .12; }
+
+  /* ── Section Titles ─────────────────────────────────── */
+  .section-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .7px;
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── Cards ──────────────────────────────────────────── */
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    padding: 22px 24px;
+  }
+  .card h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
+  .full-row { margin-bottom: 24px; }
+
+  /* ── Model Table ────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--bg); }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700;
+       text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom: 2px solid var(--border); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge-best    { background: #D1FAE5; color: #065F46; }
+  .badge-primary { background: var(--primary-l); color: var(--primary); }
+  .badge-neutral { background: var(--bg); color: var(--muted); }
+  .metric-val    { font-weight: 700; font-family: monospace; font-size: 14px; }
+
+  /* ── Insights ────────────────────────────────────────── */
+  .insight-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+  .insight {
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 16px 18px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .insight-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .insight-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .insight-desc  { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+  /* ── Footer ─────────────────────────────────────────── */
+  footer {
+    text-align: center; padding: 24px;
+    font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--border); background: var(--card);
+    margin-top: 8px;
+  }
+
+  canvas { max-height: 260px; }
+
+  @media (max-width: 900px) {
+    .kpi-row, .grid-2, .grid-3, .insight-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .kpi-row, .grid-2, .grid-3, .insight-grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>📦 Sales Demand Forecasting System</h1>
+    <p>FMCG Products · 4 Stores · 8 SKUs · 2020–2023 · ML-Powered</p>
+  </div>
+  <div class="header-badge">Internship Project · Python + Scikit-learn</div>
+</header>
+
+<div class="container">
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi" style="--kpi-color:#1A56DB">
+      <div class="kpi-label">Total Records</div>
+      <div class="kpi-value">1,536</div>
+      <div class="kpi-sub">Monthly SKU × Store rows</div>
+      <div class="kpi-icon">📋</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#057A55">
+      <div class="kpi-label">Best MAPE</div>
+      <div class="kpi-value">10.68%</div>
+      <div class="kpi-sub">Linear Regression · Test Set</div>
+      <div class="kpi-icon">🎯</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#E3A008">
+      <div class="kpi-label">Products Tracked</div>
+      <div class="kpi-value">8 SKUs</div>
+      <div class="kpi-sub">Across 4 store locations</div>
+      <div class="kpi-icon">🛒</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#E02424">
+      <div class="kpi-label">Models Trained</div>
+      <div class="kpi-value">3</div>
+      <div class="kpi-sub">LR · RF · Gradient Boosting</div>
+      <div class="kpi-icon">🤖</div>
+    </div>
+  </div>
+
+  <!-- Sales Trend -->
+  <div class="section-title">📈 Sales Trend Analysis</div>
+  <div class="full-row card">
+    <h3>Total Monthly Sales — All Products & Stores (2020–2023)</h3>
+    <canvas id="trendChart"></canvas>
+  </div>
+
+  <!-- Prediction vs Actual + Model Comparison -->
+  <div class="section-title">🤖 Model Performance</div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Prediction vs Actual — Linear Regression (Test Set)</h3>
+      <canvas id="predChart"></canvas>
+    </div>
+    <div class="card">
+      <h3>MAPE Comparison Across Models</h3>
+      <canvas id="mapeChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Model Results Table -->
+  <div class="full-row card">
+    <h3>Evaluation Metrics Summary</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>MAE</th>
+          <th>RMSE</th>
+          <th>MAPE</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Linear Regression</strong></td>
+          <td class="metric-val">81.84</td>
+          <td class="metric-val">113.44</td>
+          <td class="metric-val" style="color:#057A55">10.68%</td>
+          <td><span class="badge badge-best">✓ Best</span></td>
+        </tr>
+        <tr>
+          <td><strong>Random Forest</strong></td>
+          <td class="metric-val">81.06</td>
+          <td class="metric-val">106.83</td>
+          <td class="metric-val">10.93%</td>
+          <td><span class="badge badge-primary">Good</span></td>
+        </tr>
+        <tr>
+          <td><strong>Gradient Boosting</strong></td>
+          <td class="metric-val">89.15</td>
+          <td class="metric-val">119.60</td>
+          <td class="metric-val">11.88%</td>
+          <td><span class="badge badge-neutral">Baseline</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MAE / RMSE charts -->
+  <div class="grid-2">
+    <div class="card">
+      <h3>MAE — Mean Absolute Error</h3>
+      <canvas id="maeChart"></canvas>
+    </div>
+    <div class="card">
+      <h3>RMSE — Root Mean Square Error</h3>
+      <canvas id="rmseChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Key Insights -->
+  <div class="section-title">💡 Key Insights</div>
+  <div class="insight-grid">
+    <div class="insight">
+      <div class="insight-icon">📅</div>
+      <div>
+        <div class="insight-title">Seasonal Peaks Detected</div>
+        <div class="insight-desc">March/April (Eid) and December/January (Winter) consistently show 15–25% sales uplift across all SKUs.</div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">🏷️</div>
+      <div>
+        <div class="insight-title">Promotions Drive +20% Lift</div>
+        <div class="insight-desc">Weeks with active promotions generate a statistically significant 20% average demand spike — a critical feature for the model.</div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">🔮</div>
+      <div>
+        <div class="insight-title">Lag Features Are Key</div>
+        <div class="insight-desc">lag_1m (previous month sales) contributes the highest feature importance in Random Forest, confirming autocorrelation in demand.</div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">📊</div>
+      <div>
+        <div class="insight-title">Linear Model Wins on MAPE</div>
+        <div class="insight-desc">Despite its simplicity, Linear Regression achieved the best MAPE (10.68%) — suggesting the demand signal is largely linear after feature engineering.</div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">🏪</div>
+      <div>
+        <div class="insight-title">Uniform Store Distribution</div>
+        <div class="insight-desc">All 4 stores contribute roughly equally (~25% each), indicating no single store dominates — good for generalizable model training.</div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">⚠️</div>
+      <div>
+        <div class="insight-title">Overstocking Risk — Mid-Year</div>
+        <div class="insight-desc">Jul–Sep consistently shows demand troughs. Inventory buffers should be reduced by 10–15% in Q3 to minimise holding costs.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipeline Steps -->
+  <div class="section-title">🔧 Technical Pipeline</div>
+  <div class="grid-3">
+    <div class="card">
+      <h3>① Data Preprocessing</h3>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;padding-left:16px">
+        <li>6,656 weekly raw records generated</li>
+        <li>Aggregated to 1,536 monthly rows</li>
+        <li>Missing values imputed (median)</li>
+        <li>Chronological sorting enforced</li>
+        <li>Date parsed to datetime format</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>② Feature Engineering</h3>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;padding-left:16px">
+        <li>Lag features: 1, 2, 3, 6, 12 months</li>
+        <li>Rolling mean: 3m, 6m, 12m windows</li>
+        <li>Rolling std: 3m window</li>
+        <li>Month, quarter, year, sin/cos</li>
+        <li>Promotion flag &amp; avg price</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>③ Evaluation Strategy</h3>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;padding-left:16px">
+        <li>Temporal train/test split</li>
+        <li>Last 6 months reserved for test</li>
+        <li>MAE — average unit error</li>
+        <li>RMSE — penalises large errors</li>
+        <li>MAPE — business-readable %</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Sales Demand Forecasting System · FMCG Products · Built with Python, Pandas, Scikit-learn, Matplotlib
+  &nbsp;·&nbsp; <strong>Best Model: Linear Regression · MAPE = 10.68%</strong>
+</footer>
+
+<script>
+const COLORS = {
+  primary:  '#1A56DB',
+  accent:   '#E3A008',
+  success:  '#057A55',
+  danger:   '#E02424',
+  neutral:  '#374151',
+  muted:    '#9CA3AF',
+  bg:       '#F9FAFB',
+};
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.color = '#6B7280';
+
+// ── 1. Monthly Sales Trend ──────────────────────────────
+const salesData = [32702,28824,41796,32686,28384,31639,22511,25600,20002,19881,27416,30814,32948,28286,42134,33727,35132,25644,23495,26544,19599,20084,27129,30250,41427,29427,33795,33781,35856,26013,23469,26735,20121,25439,22334,30261,41291,29025,33804,34277,36484,26633,29407,21572,20295,25658,22162,30630];
+const salesLabels = ["2020-01","2020-02","2020-03","2020-04","2020-05","2020-06","2020-07","2020-08","2020-09","2020-10","2020-11","2020-12","2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12"];
+
+// Rolling 3m average
+function rolling3(arr) {
+  return arr.map((v,i) => i < 2 ? null : Math.round((arr[i]+arr[i-1]+arr[i-2])/3));
+}
+
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: salesLabels,
+    datasets: [
+      {
+        label: 'Monthly Sales', data: salesData,
+        borderColor: COLORS.primary, backgroundColor: COLORS.primary + '18',
+        fill: true, tension: 0.35, pointRadius: 2, borderWidth: 2,
+      },
+      {
+        label: '3-Month Rolling Avg', data: rolling3(salesData),
+        borderColor: COLORS.accent, backgroundColor: 'transparent',
+        borderDash: [6,3], tension: 0.4, pointRadius: 0, borderWidth: 2.5,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { position: 'top' }, tooltip: { mode: 'index' } },
+    scales: {
+      y: { ticks: { callback: v => v.toLocaleString() }, grid: { color: '#E5E7EB' } },
+      x: { ticks: { maxTicksLimit: 12 }, grid: { display: false } }
+    }
+  }
+});
+
+// ── 2. Prediction vs Actual ─────────────────────────────
+const pva = [
+  {actual:566,predicted:462},{actual:1223,predicted:950},{actual:749,predicted:930},{actual:745,predicted:883},
+  {actual:694,predicted:709},{actual:879,predicted:870},{actual:943,predicted:957},{actual:602,predicted:624},
+  {actual:647,predicted:729},{actual:1014,predicted:987},{actual:879,predicted:806},{actual:1162,predicted:863},
+  {actual:889,predicted:1013},{actual:406,predicted:543},{actual:566,predicted:510},{actual:306,predicted:334},
+  {actual:991,predicted:1069},{actual:572,predicted:543},{actual:896,predicted:933},{actual:763,predicted:651},
+  {actual:836,predicted:796},{actual:351,predicted:300},{actual:1205,predicted:965},{actual:804,predicted:914},
+  {actual:789,predicted:818},{actual:557,predicted:594},{actual:1071,predicted:1012},{actual:806,predicted:827},
+  {actual:724,predicted:776},{actual:568,predicted:541}
+];
+
+new Chart(document.getElementById('predChart'), {
+  type: 'line',
+  data: {
+    labels: pva.map((_,i) => `Obs ${i+1}`),
+    datasets: [
+      {
+        label: 'Actual', data: pva.map(d => d.actual),
+        borderColor: COLORS.neutral, backgroundColor: 'transparent',
+        tension: 0.3, pointRadius: 3, borderWidth: 2,
+      },
+      {
+        label: 'Predicted', data: pva.map(d => d.predicted),
+        borderColor: COLORS.primary, backgroundColor: 'transparent',
+        borderDash: [5,3], tension: 0.3, pointRadius: 3, borderWidth: 2,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      y: { ticks: { callback: v => v.toLocaleString() }, grid: { color: '#E5E7EB' } },
+      x: { ticks: { maxTicksLimit: 8 }, grid: { display: false } }
+    }
+  }
+});
+
+// ── 3. MAPE Bar ─────────────────────────────────────────
+new Chart(document.getElementById('mapeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Linear Regression', 'Random Forest', 'Gradient Boosting'],
+    datasets: [{
+      label: 'MAPE (%)',
+      data: [10.68, 10.93, 11.88],
+      backgroundColor: [COLORS.success, COLORS.primary, COLORS.accent],
+      borderRadius: 6, borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y}%` } }
+    },
+    scales: {
+      y: { min: 9, max: 13, ticks: { callback: v => v+'%' }, grid: { color: '#E5E7EB' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── 4. MAE Bar ──────────────────────────────────────────
+new Chart(document.getElementById('maeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Linear Regression', 'Random Forest', 'Gradient Boosting'],
+    datasets: [{
+      label: 'MAE',
+      data: [81.84, 81.06, 89.15],
+      backgroundColor: [COLORS.primary+'CC', COLORS.success+'CC', COLORS.accent+'CC'],
+      borderRadius: 6, borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 75, ticks: { callback: v => v.toFixed(0) }, grid: { color: '#E5E7EB' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── 5. RMSE Bar ─────────────────────────────────────────
+new Chart(document.getElementById('rmseChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Linear Regression', 'Random Forest', 'Gradient Boosting'],
+    datasets: [{
+      label: 'RMSE',
+      data: [113.44, 106.83, 119.60],
+      backgroundColor: [COLORS.accent+'CC', COLORS.primary+'CC', COLORS.danger+'CC'],
+      borderRadius: 6, borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 95, ticks: { callback: v => v.toFixed(0) }, grid: { color: '#E5E7EB' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
+</body>
+</html>
